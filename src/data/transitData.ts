@@ -1,3 +1,8 @@
+import heroTransitImg from '../assets/images/hero_intercity_transit_1790689862313.jpg';
+import mealThaliBoxImg from '../assets/images/meal_regional_thali_box_1790689882969.jpg';
+import localFoodHubImg from '../assets/images/local_food_hub_jaipur_1790689897685.jpg';
+import cabTransferImg from '../assets/images/cab_airport_transfer_1790689916876.jpg';
+
 export type TransportMode = 'bus' | 'flight' | 'train' | 'cab';
 export type TripType = 'one-way' | 'round-trip';
 export type DietaryType = 'all' | 'Vegetarian' | 'Non-Vegetarian' | 'Jain' | 'Vegan' | 'Regional Box';
@@ -145,10 +150,10 @@ export interface ConfirmedBooking {
 }
 
 export const GENERATED_IMAGES = {
-  heroTransit: '/src/assets/images/hero_intercity_transit_1790689862313.jpg',
-  mealThaliBox: '/src/assets/images/meal_regional_thali_box_1790689882969.jpg',
-  localFoodHub: '/src/assets/images/local_food_hub_jaipur_1790689897685.jpg',
-  cabTransfer: '/src/assets/images/cab_airport_transfer_1790689916876.jpg',
+  heroTransit: heroTransitImg,
+  mealThaliBox: mealThaliBoxImg,
+  localFoodHub: localFoodHubImg,
+  cabTransfer: cabTransferImg,
 };
 
 export const CITY_HUBS: CityHub[] = [
