@@ -48,6 +48,7 @@ import {
 } from './data/transitData';
 import { SeatMapSelector } from './components/SeatMapSelector';
 import { TicketModal } from './components/TicketModal';
+import { ChatAssistant } from './components/ChatAssistant';
 
 export default function App() {
   // Step 1: 100% User-Defined Place & Search Engine State (Villages, Towns, Cities, States, Countries)
@@ -1984,6 +1985,15 @@ export default function App() {
           onClose={() => setActiveTicket(null)}
         />
       )}
+
+      {/* N8N WEBHOOK TRAVEL CHATBOT */}
+      <ChatAssistant
+        fromPlace={fromCity.name}
+        toPlace={toCity.name}
+        transportMode={transportMode}
+        departureDate={departureDate}
+        totalPriceFormatted={formatCurrency(pricing.grandTotal, currency)}
+      />
     </div>
   );
 }
