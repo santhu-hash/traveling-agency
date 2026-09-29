@@ -1,0 +1,6 @@
+{
+  "name": "Vayupath — Multi-Modal Transit & Commute Booking",
+  "description": "End-to-end intercity bus, flight, and train booking engine with interactive seat maps, regional meal pre-orders, last-mile local transport transfers, and instant QR e-tickets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
