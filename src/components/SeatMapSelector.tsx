@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Check, Lock, Compass } from 'lucide-react';
-import { SeatItem, TransitOption } from '../data/transitData';
+import { SeatItem, TransitOption, CurrencyCode, formatCurrency } from '../data/transitData';
 
 interface SeatMapSelectorProps {
   option: TransitOption;
   seats: SeatItem[];
   selectedSeats: SeatItem[];
   maxSeats: number;
+  currency?: CurrencyCode;
   onToggleSeat: (seat: SeatItem) => void;
 }
 
@@ -15,6 +16,7 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
   seats,
   selectedSeats,
   maxSeats,
+  currency = 'INR',
   onToggleSeat,
 }) => {
   const [activeDeck, setActiveDeck] = useState<'lower' | 'upper'>('lower');
@@ -30,7 +32,6 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header & Deck Switcher */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">
@@ -69,7 +70,7 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
         )}
       </div>
 
-      {/* Accessible Legend (Explicit icon + text, never hue alone) */}
+      {/* Accessible Legend */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-600">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center justify-center w-5 h-5 rounded border border-slate-300 bg-white font-mono text-[10px] text-slate-700">
@@ -99,7 +100,6 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
 
       {/* Interactive Deck / Cabin Canvas */}
       <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-5">
-        {/* Front Cockpit / Driver Orientation Bar */}
         <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 mb-5 text-xs text-slate-500">
           <span className="font-mono uppercase tracking-wider text-slate-600">
             {isSleeperBus
@@ -112,7 +112,6 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
           </span>
         </div>
 
-        {/* Column Headers */}
         {isSleeperBus ? (
           <div className="grid grid-cols-12 gap-2 mb-3 text-[11px] font-mono text-slate-500">
             <div className="col-span-4 text-center">Single Window (A)</div>
@@ -132,7 +131,6 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
           </div>
         )}
 
-        {/* Seat Matrix */}
         <div className="space-y-2.5">
           {rows.map((rowNum) => {
             const rowSeats = visibleSeats
@@ -153,6 +151,7 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
                         selected={isSeatSelected(singleSeat.id)}
                         isSleeper
                         baseFare={option.baseFare}
+                        currency={currency}
                         onSelect={() => onToggleSeat(singleSeat)}
                       />
                     )}
@@ -167,6 +166,7 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
                         selected={isSeatSelected(innerSeat.id)}
                         isSleeper
                         baseFare={option.baseFare}
+                        currency={currency}
                         onSelect={() => onToggleSeat(innerSeat)}
                       />
                     )}
@@ -178,6 +178,7 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
                         selected={isSeatSelected(windowSeat.id)}
                         isSleeper
                         baseFare={option.baseFare}
+                        currency={currency}
                         onSelect={() => onToggleSeat(windowSeat)}
                       />
                     )}
@@ -186,7 +187,6 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
               );
             }
 
-            // Cabin 3 + 3 Layout
             return (
               <div key={rowNum} className="grid grid-cols-7 gap-2 items-center">
                 {rowSeats.slice(0, 3).map((seat) => (
@@ -196,6 +196,7 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
                     selected={isSeatSelected(seat.id)}
                     isSleeper={false}
                     baseFare={option.baseFare}
+                    currency={currency}
                     onSelect={() => onToggleSeat(seat)}
                   />
                 ))}
@@ -209,6 +210,7 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
                     selected={isSeatSelected(seat.id)}
                     isSleeper={false}
                     baseFare={option.baseFare}
+                    currency={currency}
                     onSelect={() => onToggleSeat(seat)}
                   />
                 ))}
@@ -218,7 +220,6 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
         </div>
       </div>
 
-      {/* Active Seat Selection Summary Line */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs text-slate-600">
         <div>
           <span className="font-medium text-slate-900">Selected Seats: </span>
@@ -231,10 +232,11 @@ export const SeatMapSelector: React.FC<SeatMapSelectorProps> = ({
           )}
         </div>
         <div className="font-mono tabular-nums text-slate-900 font-medium">
-          Seat Subtotal: ₹
-          {selectedSeats
-            .reduce((acc, s) => acc + option.baseFare + s.surcharge, 0)
-            .toLocaleString('en-IN')}
+          Seat Subtotal:{' '}
+          {formatCurrency(
+            selectedSeats.reduce((acc, s) => acc + option.baseFare + s.surcharge, 0),
+            currency
+          )}
         </div>
       </div>
     </div>
@@ -246,6 +248,7 @@ interface SeatButtonProps {
   selected: boolean;
   isSleeper: boolean;
   baseFare: number;
+  currency: CurrencyCode;
   onSelect: () => void;
 }
 
@@ -254,6 +257,7 @@ const SeatButton: React.FC<SeatButtonProps> = ({
   selected,
   isSleeper,
   baseFare,
+  currency,
   onSelect,
 }) => {
   const isBooked = seat.status === 'booked';
@@ -265,7 +269,7 @@ const SeatButton: React.FC<SeatButtonProps> = ({
       type="button"
       disabled={isBooked}
       onClick={onSelect}
-      title={`${seat.label} · ${seat.position} · ₹${totalSeatPrice}`}
+      title={`${seat.label} · ${seat.position} · ${formatCurrency(totalSeatPrice, currency)}`}
       className={`w-full flex flex-col items-center justify-between rounded-lg border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
         isSleeper ? 'px-2.5 py-2.5 min-h-[60px]' : 'px-1.5 py-2 min-h-[48px]'
       } ${
@@ -293,7 +297,7 @@ const SeatButton: React.FC<SeatButtonProps> = ({
 
       <div className="w-full flex items-center justify-between mt-1.5 text-[10px] font-mono tabular-nums opacity-85">
         <span className="truncate">{isSleeper ? seat.position.replace('Single ', '') : seat.position.slice(0, 3)}</span>
-        <span>{isBooked ? 'Sold' : `₹${totalSeatPrice}`}</span>
+        <span>{isBooked ? 'Sold' : formatCurrency(totalSeatPrice, currency)}</span>
       </div>
     </button>
   );

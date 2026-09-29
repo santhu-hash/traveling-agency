@@ -9,7 +9,11 @@ import {
   Navigation,
   PhoneCall,
 } from 'lucide-react';
-import { ConfirmedBooking, PUBLIC_TRANSIT_GUIDES } from '../data/transitData';
+import {
+  ConfirmedBooking,
+  getDynamicPublicTransitGuide,
+  formatCurrency,
+} from '../data/transitData';
 
 interface TicketModalProps {
   booking: ConfirmedBooking;
@@ -20,8 +24,8 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
   const [whatsappResent, setWhatsappResent] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const destinationGuide =
-    PUBLIC_TRANSIT_GUIDES[booking.toCity.name] || PUBLIC_TRANSIT_GUIDES['Jaipur'];
+  const destinationGuide = getDynamicPublicTransitGuide(booking.toCity);
+  const cur = booking.currency || 'INR';
 
   const handlePrintOrDownload = () => {
     window.print();
@@ -31,38 +35,62 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
     const lines = [
       `VAYUPATH OFFICIAL E-TICKET & DESTINATION COMMUTE GUIDE`,
       `======================================================`,
-      `PNR Reference : ${booking.pnr}`,
-      `Issued At     : ${booking.bookedAt}`,
-      `Passenger     : ${booking.passengerContact.fullName} (${booking.passengerContact.phone})`,
-      `Route         : ${booking.fromCity.name} (${booking.fromCity.code}) -> ${booking.toCity.name} (${booking.toCity.code})`,
-      `Trip Type     : ${booking.tripType.toUpperCase()}`,
-      `Departure     : ${booking.departureDate} at ${booking.selectedRoute.departureTime}`,
-      `Operator      : ${booking.selectedRoute.operator} · ${booking.selectedRoute.serviceCode} (${booking.selectedRoute.vehicleType})`,
-      `Assigned Seats: ${booking.selectedSeats.map((s) => `${s.label} (${s.position})`).join(', ')}`,
+      `PNR Reference   : ${booking.pnr}`,
+      `Issued At       : ${booking.bookedAt}`,
+      `Passenger       : ${booking.passengerContact.fullName} (${booking.passengerContact.phone})`,
+      `Origin (${booking.fromCity.placeType}) : ${booking.fromCity.name}, ${booking.fromCity.state}, ${booking.fromCity.country} (${booking.fromCity.code})`,
+      `Boarding Point  : ${booking.customBoardingPoint}`,
+      `Destination (${booking.toCity.placeType}) : ${booking.toCity.name}, ${booking.toCity.state}, ${booking.toCity.country} (${booking.toCity.code})`,
+      `Dropping Point  : ${booking.customDroppingPoint}`,
+      `Distance        : ${booking.selectedRoute.distanceKm} km · ${booking.tripType.toUpperCase()}`,
+      `Departure       : ${booking.departureDate} at ${booking.selectedRoute.departureTime}`,
+      `Operator        : ${booking.selectedRoute.operator} · ${booking.selectedRoute.serviceCode} (${booking.selectedRoute.vehicleType})`,
+      `Assigned Seats  : ${booking.selectedSeats.map((s) => `${s.label} (${s.position})`).join(', ')}`,
       ``,
       `PRE-BOOKED MEALS & PERSONALIZATION`,
       `----------------------------------`,
       booking.selectedMeals.length > 0
-        ? booking.selectedMeals.map((m) => `- ${m.meal.name} (${m.meal.dietary}) x${m.quantity} : INR ${m.meal.price * m.quantity}`).join('\n')
+        ? booking.selectedMeals
+            .map(
+              (m) =>
+                `- ${m.meal.name} (${m.meal.dietary}) x${m.quantity} : ${formatCurrency(
+                  m.meal.price * m.quantity,
+                  cur
+                )}`
+            )
+            .join('\n')
         : `- No onboard meal boxes added`,
+      booking.customMealNote ? `Special Dietary / Custom Meal Request: ${booking.customMealNote}` : null,
       ``,
       `ON-GROUND LOCAL TRANSPORT AT ${booking.toCity.name.toUpperCase()}`,
       `----------------------------------`,
       booking.selectedLocalCommute
-        ? `- Confirmed: ${booking.selectedLocalCommute.title} (${booking.selectedLocalCommute.vehicleModel})\n  Pickup: ${booking.selectedLocalCommute.pickupPoint}\n  Drop Address: ${booking.passengerContact.dropHotelAddress || 'City Center Hotel'}`
-        : `- Using Public Transit (${destinationGuide.metroNetwork.lines})`,
+        ? `- Confirmed: ${booking.selectedLocalCommute.title} (${booking.selectedLocalCommute.vehicleModel})\n  Pickup: ${booking.selectedLocalCommute.pickupPoint}\n  Drop Address: ${booking.passengerContact.dropHotelAddress || booking.customDroppingPoint}`
+        : `- Using Local Transit (${destinationGuide.metroNetwork.lines})`,
       ``,
-      `PRICE TRANSPARENCY BREAKDOWN`,
+      `PRICE TRANSPARENCY BREAKDOWN (${cur})`,
       `----------------------------------`,
-      `Base Fare (${booking.selectedSeats.length} Seats) : INR ${booking.pricing.baseFareTotal}`,
-      booking.pricing.returnFareTotal > 0 ? `Return Trip Fare        : INR ${booking.pricing.returnFareTotal}` : null,
-      booking.pricing.seatSurchargeTotal > 0 ? `Preferred Seat Surcharge: INR ${booking.pricing.seatSurchargeTotal}` : null,
-      `Taxes & Highway/Air GST : INR ${booking.pricing.taxes}`,
-      `Convenience Fee         : INR ${booking.pricing.convenienceFee}`,
-      `Food & Meal Add-ons     : INR ${booking.pricing.mealsTotal}`,
-      `Local Commute Add-on    : INR ${booking.pricing.localCommuteTotal}`,
-      booking.pricing.insuranceTotal > 0 ? `Travel Delay Protection : INR ${booking.pricing.insuranceTotal}` : null,
-      `TOTAL PAID (${booking.passengerContact.paymentMethod}) : INR ${booking.pricing.grandTotal}`,
+      `Base Fare (${booking.selectedSeats.length} Seats) : ${formatCurrency(booking.pricing.baseFareTotal, cur)}`,
+      booking.pricing.childDiscountTotal > 0
+        ? `Child Passenger Savings : -${formatCurrency(booking.pricing.childDiscountTotal, cur)}`
+        : null,
+      booking.pricing.concessionDiscountTotal > 0
+        ? `Concession (${booking.passengers.concession}) : -${formatCurrency(booking.pricing.concessionDiscountTotal, cur)}`
+        : null,
+      booking.pricing.returnFareTotal > 0
+        ? `Return Trip Fare        : ${formatCurrency(booking.pricing.returnFareTotal, cur)}`
+        : null,
+      booking.pricing.seatSurchargeTotal > 0
+        ? `Preferred Seat Surcharge: ${formatCurrency(booking.pricing.seatSurchargeTotal, cur)}`
+        : null,
+      `Taxes & GST             : ${formatCurrency(booking.pricing.taxes, cur)}`,
+      `Convenience Fee         : ${formatCurrency(booking.pricing.convenienceFee, cur)}`,
+      `Food & Meal Add-ons     : ${formatCurrency(booking.pricing.mealsTotal, cur)}`,
+      `Local Commute Add-on    : ${formatCurrency(booking.pricing.localCommuteTotal, cur)}`,
+      booking.pricing.insuranceTotal > 0
+        ? `Travel Delay Protection : ${formatCurrency(booking.pricing.insuranceTotal, cur)}`
+        : null,
+      `TOTAL PAID (${booking.passengerContact.paymentMethod}) : ${formatCurrency(booking.pricing.grandTotal, cur)}`,
     ]
       .filter(Boolean)
       .join('\n');
@@ -87,7 +115,6 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
-  // Generate deterministic 7x7 QR matrix from PNR string
   const qrCells: boolean[] = [];
   for (let i = 0; i < 49; i++) {
     const charCode = booking.pnr.charCodeAt(i % booking.pnr.length);
@@ -97,7 +124,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 overflow-y-auto">
       <div className="relative w-full max-w-4xl bg-white border border-slate-200 rounded-xl shadow-xl my-8 overflow-hidden">
-        {/* Top Action Bar (Hidden when printing) */}
+        {/* Top Action Bar */}
         <div className="no-print flex flex-wrap items-center justify-between gap-3 px-6 py-4 bg-slate-900 text-white">
           <div className="flex items-center gap-2.5">
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-slate-950">
@@ -138,7 +165,6 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
 
         {/* Main E-Ticket Body */}
         <div className="p-6 md:p-8 space-y-8 max-h-[82vh] overflow-y-auto">
-          {/* Primary Boarding Pass Section */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-6 border-b border-slate-200">
             <div className="lg:col-span-8 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
@@ -146,35 +172,33 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
                 <span>·</span>
                 <span className="font-mono">Service {booking.selectedRoute.serviceCode}</span>
                 <span>·</span>
-                <span>Issued {booking.bookedAt}</span>
+                <span>{booking.selectedRoute.distanceKm} km Route</span>
               </div>
 
               <div className="flex flex-wrap items-baseline gap-4">
                 <div>
+                  <div className="text-xs text-slate-500">
+                    From ({booking.fromCity.placeType} · {booking.fromCity.country})
+                  </div>
                   <div className="text-2xl md:text-3xl font-bold font-display text-slate-900">
                     {booking.fromCity.name} ({booking.fromCity.code})
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    {booking.mode === 'flight'
-                      ? booking.fromCity.airportName
-                      : booking.mode === 'train'
-                      ? booking.fromCity.trainStation
-                      : booking.fromCity.busTerminal}
+                  <div className="text-xs text-slate-600 mt-0.5">
+                    Boarding: {booking.customBoardingPoint}
                   </div>
                 </div>
 
                 <ArrowRight className="w-5 h-5 text-slate-400 shrink-0 self-center" />
 
                 <div>
+                  <div className="text-xs text-slate-500">
+                    To ({booking.toCity.placeType} · {booking.toCity.country})
+                  </div>
                   <div className="text-2xl md:text-3xl font-bold font-display text-slate-900">
                     {booking.toCity.name} ({booking.toCity.code})
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    {booking.mode === 'flight'
-                      ? booking.toCity.airportName
-                      : booking.mode === 'train'
-                      ? booking.toCity.trainStation
-                      : booking.toCity.busTerminal}
+                  <div className="text-xs text-slate-600 mt-0.5">
+                    Drop Point: {booking.customDroppingPoint}
                   </div>
                 </div>
               </div>
@@ -205,6 +229,13 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
                   </span>
                 </div>
               </div>
+
+              {booking.customMealNote && (
+                <div className="text-xs text-slate-600 pt-2 border-t border-slate-100">
+                  <strong className="text-slate-900">Custom Meal / Dietary Request:</strong>{' '}
+                  {booking.customMealNote}
+                </div>
+              )}
             </div>
 
             {/* Fast Boarding QR Code Box */}
@@ -216,14 +247,12 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
                   role="img"
                   aria-label={`Boarding QR Code for PNR ${booking.pnr}`}
                 >
-                  {/* Finder Patterns */}
                   <rect x="4" y="4" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="4" />
                   <rect x="10" y="10" width="10" height="10" fill="currentColor" />
                   <rect x="64" y="4" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="4" />
                   <rect x="70" y="10" width="10" height="10" fill="currentColor" />
                   <rect x="4" y="64" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="4" />
                   <rect x="10" y="70" width="10" height="10" fill="currentColor" />
-                  {/* Data Modules */}
                   {qrCells.map((filled, idx) => {
                     const r = Math.floor(idx / 7);
                     const c = idx % 7;
@@ -240,7 +269,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
                   PNR: {booking.pnr}
                 </div>
                 <div className="text-[11px] text-slate-500">
-                  Scan at terminal gate for fast check-in
+                  Scan at {booking.fromCity.name} boarding point
                 </div>
               </div>
             </div>
@@ -248,7 +277,6 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
 
           {/* Mobile WhatsApp & SMS Alert Dispatch + Price Transparency Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pb-6 border-b border-slate-200">
-            {/* WhatsApp & SMS Live Alert Preview */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-slate-900">
@@ -277,7 +305,8 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
                   <span className="font-mono font-semibold">
                     {booking.selectedSeats.map((s) => s.label).join(', ')}
                   </span>{' '}
-                  from {booking.fromCity.name} to {booking.toCity.name} on {booking.departureDate} ({booking.selectedRoute.departureTime}) are confirmed.
+                  from <strong>{booking.fromCity.name}</strong> ({booking.customBoardingPoint}) to{' '}
+                  <strong>{booking.toCity.name}</strong> ({booking.customDroppingPoint}) on {booking.departureDate} ({booking.selectedRoute.departureTime}) are confirmed.
                 </p>
                 {booking.selectedLocalCommute && (
                   <p className="text-slate-700 leading-relaxed">
@@ -305,7 +334,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-slate-900">
-                  Itemized Price Transparency Receipt
+                  Itemized Price Transparency Receipt ({cur})
                 </h4>
                 <span className="text-xs text-slate-500 font-mono">
                   Paid via {booking.passengerContact.paymentMethod}
@@ -315,45 +344,57 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
               <div className="space-y-2 text-xs font-mono tabular-nums">
                 <div className="flex justify-between text-slate-600">
                   <span>Base Fare ({booking.selectedSeats.length} Seat/Berth)</span>
-                  <span>₹{booking.pricing.baseFareTotal.toLocaleString('en-IN')}</span>
+                  <span>{formatCurrency(booking.pricing.baseFareTotal, cur)}</span>
                 </div>
+                {booking.pricing.childDiscountTotal > 0 && (
+                  <div className="flex justify-between text-emerald-700">
+                    <span>Child Passenger Fare Discount</span>
+                    <span>−{formatCurrency(booking.pricing.childDiscountTotal, cur)}</span>
+                  </div>
+                )}
+                {booking.pricing.concessionDiscountTotal > 0 && (
+                  <div className="flex justify-between text-emerald-700">
+                    <span>Concession ({booking.passengers.concession})</span>
+                    <span>−{formatCurrency(booking.pricing.concessionDiscountTotal, cur)}</span>
+                  </div>
+                )}
                 {booking.pricing.returnFareTotal > 0 && (
                   <div className="flex justify-between text-slate-600">
                     <span>Return Journey Base Fare</span>
-                    <span>₹{booking.pricing.returnFareTotal.toLocaleString('en-IN')}</span>
+                    <span>{formatCurrency(booking.pricing.returnFareTotal, cur)}</span>
                   </div>
                 )}
                 {booking.pricing.seatSurchargeTotal > 0 && (
                   <div className="flex justify-between text-slate-600">
                     <span>Window / Lower Berth Preference</span>
-                    <span>₹{booking.pricing.seatSurchargeTotal.toLocaleString('en-IN')}</span>
+                    <span>{formatCurrency(booking.pricing.seatSurchargeTotal, cur)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-slate-600">
                   <span>GST & Terminal Taxes</span>
-                  <span>₹{booking.pricing.taxes.toLocaleString('en-IN')}</span>
+                  <span>{formatCurrency(booking.pricing.taxes, cur)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Platform Convenience Fee</span>
-                  <span>₹{booking.pricing.convenienceFee.toLocaleString('en-IN')}</span>
+                  <span>{formatCurrency(booking.pricing.convenienceFee, cur)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Pre-Booked Meals ({booking.selectedMeals.reduce((a, b) => a + b.quantity, 0)} items)</span>
-                  <span>₹{booking.pricing.mealsTotal.toLocaleString('en-IN')}</span>
+                  <span>{formatCurrency(booking.pricing.mealsTotal, cur)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>On-Ground Local Commute Add-on</span>
-                  <span>₹{booking.pricing.localCommuteTotal.toLocaleString('en-IN')}</span>
+                  <span>{formatCurrency(booking.pricing.localCommuteTotal, cur)}</span>
                 </div>
                 {booking.pricing.insuranceTotal > 0 && (
                   <div className="flex justify-between text-slate-600">
                     <span>Trip Delay & Baggage Protection</span>
-                    <span>₹{booking.pricing.insuranceTotal.toLocaleString('en-IN')}</span>
+                    <span>{formatCurrency(booking.pricing.insuranceTotal, cur)}</span>
                   </div>
                 )}
                 <div className="flex justify-between pt-2 border-t border-slate-200 text-sm font-semibold text-slate-900">
                   <span>Total Amount Paid</span>
-                  <span>₹{booking.pricing.grandTotal.toLocaleString('en-IN')}</span>
+                  <span>{formatCurrency(booking.pricing.grandTotal, cur)}</span>
                 </div>
               </div>
             </div>
@@ -364,17 +405,17 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                 <Navigation className="w-4 h-4 text-blue-700" />
-                {booking.toCity.name} Arrival Commute & Curated Dining Guide
+                {booking.toCity.name} ({booking.toCity.placeType} · {booking.toCity.country}) Arrival & Dining Guide
               </h4>
               <span className="text-xs text-slate-500">
-                Bundled with your E-Ticket for offline access
+                Tailored to {booking.toCity.name}
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
               <div className="space-y-1">
                 <div className="font-semibold text-slate-900">
-                  Metro & Rail Transit
+                  Local Transit & Feeder Network
                 </div>
                 <p className="text-slate-600 leading-relaxed">
                   {destinationGuide.metroNetwork.lines} · {destinationGuide.metroNetwork.stationConnect}
@@ -386,7 +427,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
 
               <div className="space-y-1">
                 <div className="font-semibold text-slate-900">
-                  Prepaid Auto & Cab Tariff
+                  Prepaid Auto, Jeep & Cab Tariff
                 </div>
                 <p className="text-slate-600 leading-relaxed">
                   {destinationGuide.rickshawAndPrepaid.baseFare} · {destinationGuide.rickshawAndPrepaid.perKmRate}
@@ -398,7 +439,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
 
               <div className="space-y-1">
                 <div className="font-semibold text-slate-900">
-                  Saved Destination Food Stops
+                  Saved {booking.toCity.name} Food Stops
                 </div>
                 {booking.savedFoodSpots.length > 0 ? (
                   <ul className="space-y-1 text-slate-600">
@@ -410,7 +451,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({ booking, onClose }) =>
                   </ul>
                 ) : (
                   <p className="text-slate-600 leading-relaxed">
-                    Top nearby pick: Johari Bazaar Heritage Thali & Masala Chowk Courtyard (2.8 km from terminal).
+                    Recommended in {booking.toCity.name}: {booking.toCity.signatureDishes.join(', ')} near {booking.toCity.popularHotelZones[0]}.
                   </p>
                 )}
               </div>
